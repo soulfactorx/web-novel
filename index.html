@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>웹소설 리더</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/" title="서재">📚 서재</a>
+    <nav class="tabs" id="tabs" aria-label="열린 파일"></nav>
+    <button class="icon" id="btn-settings" title="보기 설정" aria-label="보기 설정">Aa</button>
+  </header>
+
+  <main id="library" class="view" hidden>
+    <section id="recent-section" hidden>
+      <h2>이어 읽기</h2>
+      <ul class="list" id="recent"></ul>
+    </section>
+    <section>
+      <div class="lib-head">
+        <h2>전체 목록</h2>
+        <input type="search" id="search" placeholder="제목 검색">
+      </div>
+      <div id="all"></div>
+    </section>
+  </main>
+
+  <main id="reader" class="view" hidden>
+    <div class="reader-bar">
+      <button id="btn-toc" title="목차">☰ 목차</button>
+      <span class="doc-title" id="doc-title"></span>
+      <span class="progress-text" id="progress-text"></span>
+    </div>
+    <div class="pager" id="pager-top"></div>
+    <article id="content" class="content"></article>
+    <div class="pager" id="pager-bottom"></div>
+  </main>
+
+  <main id="message" class="view" hidden></main>
+
+  <div class="progress-line"><div id="progress-line"></div></div>
+
+  <aside id="toc-panel" class="panel" hidden>
+    <div class="panel-head"><strong>목차</strong><button class="icon close" data-close>✕</button></div>
+    <ol id="toc"></ol>
+  </aside>
+
+  <aside id="settings-panel" class="panel" hidden>
+    <div class="panel-head"><strong>보기 설정</strong><button class="icon close" data-close>✕</button></div>
+    <div class="setting"><span>글자 크기</span>
+      <button data-set="fontSize" data-step="-1">−</button><output id="v-fontSize"></output><button data-set="fontSize" data-step="1">+</button></div>
+    <div class="setting"><span>줄 간격</span>
+      <button data-set="lineHeight" data-step="-0.1">−</button><output id="v-lineHeight"></output><button data-set="lineHeight" data-step="0.1">+</button></div>
+    <div class="setting"><span>본문 폭</span>
+      <button data-set="width" data-step="-40">−</button><output id="v-width"></output><button data-set="width" data-step="40">+</button></div>
+    <div class="setting"><span>문단 간격</span>
+      <button data-set="paraGap" data-step="-0.2">−</button><output id="v-paraGap"></output><button data-set="paraGap" data-step="0.2">+</button></div>
+    <div class="setting"><span>글꼴</span>
+      <select id="s-font">
+        <option value="serif">명조</option>
+        <option value="sans">고딕</option>
+      </select></div>
+    <div class="setting"><span>테마</span>
+      <select id="s-theme">
+        <option value="auto">시스템</option>
+        <option value="light">밝게</option>
+        <option value="sepia">세피아</option>
+        <option value="dark">어둡게</option>
+      </select></div>
+    <hr>
+    <div class="setting col"><span>읽기 기록 (다른 기기로 옮기기)</span>
+      <div class="row">
+        <button id="btn-export">내보내기</button>
+        <button id="btn-import">가져오기</button>
+        <input type="file" id="import-file" accept="application/json" hidden>
+      </div></div>
+    <div class="setting col"><span>저장된 비밀번호</span>
+      <div class="row"><button id="btn-forget">모두 지우기</button></div></div>
+    <p class="hint"><a href="encrypt.html">파일 암호화 도구 열기</a></p>
+  </aside>
+
+  <dialog id="pw-dialog">
+    <form method="dialog" id="pw-form">
+      <h3>🔒 암호화된 파일</h3>
+      <p id="pw-file"></p>
+      <input type="password" id="pw-input" placeholder="비밀번호" autocomplete="current-password" required>
+      <label class="check"><input type="checkbox" id="pw-remember"> 이 기기에 비밀번호 기억하기</label>
+      <p class="error" id="pw-error"></p>
+      <div class="row end">
+        <button value="cancel" formnovalidate>취소</button>
+        <button value="ok" class="primary">열기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>
