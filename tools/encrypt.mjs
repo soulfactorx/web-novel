@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// 텍스트 파일을 리더용 암호화 파일(.txt.enc)로 변환하거나, 반대로 복호화한다.
-//   암호화: node tools/encrypt.mjs novels/작품/1권.txt [다른파일.txt ...]
+// 텍스트 파일·표지 이미지를 리더용 암호화 파일(.enc)로 변환하거나, 반대로 복호화한다.
+//   암호화: node tools/encrypt.mjs novels/작품/1권.txt [cover.jpg ...]
 //   복호화: node tools/encrypt.mjs --decrypt novels/작품/1권.txt.enc
 // 비밀번호는 실행 중에 입력하거나 환경변수 WN_PASSWORD 로 넘길 수 있다.
 // 원본 .txt 는 지우지 않는다. 저장소에는 .enc 파일만 올릴 것.
 import { readFile, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
-import { encryptText, decryptText, decodeText } from '../assets/wncrypt.js';
+import { encryptText, encryptBytes, decryptBytes, decodeText, imageTypeOf } from '../assets/wncrypt.js';
 
 const args = process.argv.slice(2);
 const decrypt = args[0] === '--decrypt' || args[0] === '-d';
@@ -31,14 +31,18 @@ if (!password) { console.error('비밀번호가 비어 있습니다.'); process.
 
 for (const input of inputs) {
   if (decrypt) {
-    const text = await decryptText(await readFile(input, 'utf8'), password);
-    const out = input.replace(/\.enc$/i, '') + (input.toLowerCase().endsWith('.txt.enc') ? '' : '.txt');
-    await writeFile(out, text);
+    const { bytes } = await decryptBytes(await readFile(input, 'utf8'), password);
+    const name = input.replace(/\.enc$/i, '');
+    const out = name !== input && /\.\w+$/.test(name.split('/').pop()) ? name : name + '.txt';
+    await writeFile(out, bytes);
     console.log(`복호화: ${input} → ${out}`);
   } else {
-    const text = decodeText(new Uint8Array(await readFile(input)));
+    const type = imageTypeOf(input);
+    const data = type
+      ? await encryptBytes(new Uint8Array(await readFile(input)), password, { type, compress: false })
+      : await encryptText(decodeText(new Uint8Array(await readFile(input))), password);
     const out = input + '.enc';
-    await writeFile(out, await encryptText(text, password));
+    await writeFile(out, data);
     console.log(`암호화: ${input} → ${out}`);
   }
 }
