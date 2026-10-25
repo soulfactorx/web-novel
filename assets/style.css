@@ -1,0 +1,135 @@
+:root {
+  --bg: #fbfbf8;
+  --fg: #222;
+  --muted: #777;
+  --line: #e2e2dc;
+  --panel: #ffffff;
+  --accent: #2f6fdd;
+  --hover: rgba(0, 0, 0, .05);
+  --font-size: 18px;
+  --line-height: 1.8;
+  --width: 720px;
+  --para-gap: 0.6em;
+  --reader-font: "Noto Serif KR", "Nanum Myeongjo", "Batang", serif;
+}
+:root[data-theme="sepia"] {
+  --bg: #f4ecd8; --fg: #3b3024; --muted: #8a7a63; --line: #e0d5bb; --panel: #faf4e4; --hover: rgba(80, 60, 20, .07);
+}
+:root[data-theme="dark"] {
+  --bg: #17181a; --fg: #d6d6d2; --muted: #8b8d91; --line: #2c2e31; --panel: #202225; --accent: #7aa7ff; --hover: rgba(255, 255, 255, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg: #17181a; --fg: #d6d6d2; --muted: #8b8d91; --line: #2c2e31; --panel: #202225; --accent: #7aa7ff; --hover: rgba(255, 255, 255, .06);
+  }
+}
+:root[data-font="sans"] { --reader-font: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+
+* { box-sizing: border-box; }
+html { scroll-padding-top: 64px; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--accent); text-decoration: none; }
+button, select, input {
+  font: inherit; color: inherit; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px;
+}
+button { cursor: pointer; }
+button:hover { background: var(--hover); }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.icon { border: none; background: none; padding: 4px 8px; }
+[hidden] { display: none !important; }
+
+/* 상단 바 + 탭 */
+.topbar {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.brand { font-weight: 600; white-space: nowrap; color: var(--fg); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  display: flex; align-items: center; gap: 2px; max-width: 200px; flex-shrink: 0;
+  border: 1px solid var(--line); border-radius: 6px; font-size: 13px; color: var(--muted);
+}
+.tab a { padding: 4px 4px 4px 10px; color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab button { border: none; background: none; padding: 2px 6px; color: inherit; }
+.tab.active { color: var(--fg); border-color: var(--accent); }
+
+.progress-line { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; z-index: 10; }
+.progress-line div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+/* 서재 */
+#library, #message { max-width: 820px; margin: 0 auto; padding: 16px; }
+#message { color: var(--muted); padding-top: 48px; text-align: center; }
+h2 { font-size: 17px; margin: 18px 0 8px; }
+.lib-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lib-head input { max-width: 220px; width: 100%; }
+.folder > summary { cursor: pointer; padding: 8px 4px; font-weight: 600; color: var(--muted); }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li a {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+  padding: 10px 8px; border-bottom: 1px solid var(--line); color: var(--fg); border-radius: 4px;
+}
+.list li a:hover { background: var(--hover); }
+.list .meta { font-size: 12px; color: var(--muted); }
+.bar { grid-column: 1 / -1; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.bar div { height: 100%; background: var(--accent); }
+
+/* 리더 */
+.reader-bar {
+  max-width: var(--width); margin: 0 auto; padding: 12px 16px 0;
+  display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px;
+}
+.doc-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pager {
+  max-width: var(--width); margin: 0 auto; padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.pager select { max-width: 50%; }
+.content {
+  max-width: var(--width); margin: 0 auto; padding: 8px 16px 24px;
+  font-family: var(--reader-font); font-size: var(--font-size); line-height: var(--line-height);
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+.content p { margin: 0 0 var(--para-gap); white-space: pre-wrap; }
+.content p.blank { margin: 0; height: calc(var(--para-gap)); }
+.content p.heading { font-weight: 700; margin-top: 1.5em; }
+.content p.resume { background: none; outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; transition: outline-color 1.5s; }
+
+/* 패널 */
+.panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 20; width: min(340px, 90vw);
+  background: var(--panel); border-left: 1px solid var(--line); padding: 12px 16px; overflow-y: auto;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, .12);
+}
+#toc-panel { left: 0; right: auto; border-left: none; border-right: 1px solid var(--line); }
+.panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+#toc { list-style: none; padding: 0; margin: 0; }
+#toc a { display: block; padding: 7px 6px; color: var(--fg); border-radius: 4px; font-size: 14px; }
+#toc a:hover { background: var(--hover); }
+#toc a.current { color: var(--accent); font-weight: 600; }
+.setting { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+.setting > span { flex: 1; color: var(--muted); }
+.setting output { min-width: 48px; text-align: center; }
+.setting.col { flex-direction: column; align-items: stretch; }
+.row { display: flex; gap: 8px; }
+.row.end { justify-content: flex-end; }
+hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+.hint { font-size: 13px; }
+
+dialog {
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--fg);
+  width: min(360px, 92vw); padding: 18px;
+}
+dialog::backdrop { background: rgba(0, 0, 0, .4); }
+dialog h3 { margin: 0 0 6px; }
+dialog input[type=password] { width: 100%; margin: 8px 0; }
+#pw-file { color: var(--muted); font-size: 13px; margin: 0; word-break: break-all; }
+.check { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.check input { margin: 0; }
+.error { color: #d33; font-size: 13px; min-height: 1em; margin: 6px 0; }

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>파일 암호화 도구 - 웹소설 리더</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    main { max-width: 640px; margin: 0 auto; padding: 16px; }
+    label { display: block; margin: 14px 0 4px; color: var(--muted); }
+    input[type=password], input[type=file] { width: 100%; }
+    .row { margin-top: 16px; }
+    #log { list-style: none; padding: 0; font-size: 14px; }
+    #log li { padding: 6px 0; border-bottom: 1px solid var(--line); word-break: break-all; }
+    .note { font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./">📚 서재</a><span>파일 암호화 도구</span></header>
+  <main>
+    <p class="note">파일은 이 브라우저 안에서만 처리되며 어디에도 전송되지 않습니다.
+      암호화한 <code>.txt.enc</code> 파일을 저장소의 <code>novels/</code> 폴더에 올리면 리더에서 비밀번호로 열 수 있습니다.</p>
+    <label for="files">텍스트 파일 (여러 개 선택 가능, UTF-8 / EUC-KR 자동 인식)</label>
+    <input type="file" id="files" multiple accept=".txt,.enc,text/plain">
+    <label for="pw1">비밀번호</label>
+    <input type="password" id="pw1" autocomplete="new-password">
+    <label for="pw2">비밀번호 확인 (암호화할 때만)</label>
+    <input type="password" id="pw2" autocomplete="new-password">
+    <div class="row">
+      <button class="primary" id="btn-enc">암호화해서 내려받기</button>
+      <button id="btn-dec">복호화해서 내려받기</button>
+    </div>
+    <ul id="log"></ul>
+    <p class="note">⚠️ 원본 <code>.txt</code> 를 한 번이라도 커밋했다면 Git 기록에 남아 있습니다. 공개 저장소에는 처음부터 <code>.enc</code> 파일만 올리세요.
+      비밀번호를 잊으면 파일을 되살릴 수 없습니다.</p>
+  </main>
+  <script type="module">
+    import { encryptText, decryptText, decodeText } from './assets/wncrypt.js';
+    const $ = (id) => document.getElementById(id);
+    const log = (msg) => { const li = document.createElement('li'); li.textContent = msg; $('log').prepend(li); };
+    const download = (name, text) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    async function run(decrypt) {
+      const files = [...$('files').files];
+      const pw = $('pw1').value;
+      if (!files.length) return log('파일을 선택하세요.');
+      if (!pw) return log('비밀번호를 입력하세요.');
+      if (!decrypt && pw !== $('pw2').value) return log('비밀번호 확인이 일치하지 않습니다.');
+      for (const f of files) {
+        try {
+          if (decrypt) {
+            const text = await decryptText(await f.text(), pw);
+            download(f.name.replace(/\.enc$/i, '').replace(/(\.txt)?$/i, '.txt'), text);
+            log(`✅ 복호화: ${f.name}`);
+          } else {
+            const text = decodeText(new Uint8Array(await f.arrayBuffer()));
+            download(f.name + '.enc', await encryptText(text, pw));
+            log(`✅ 암호화: ${f.name} → ${f.name}.enc`);
+          }
+        } catch (e) {
+          log(`❌ ${f.name}: ${e.message}`);
+        }
+      }
+    }
+    $('btn-enc').onclick = () => run(false);
+    $('btn-dec').onclick = () => run(true);
+  </script>
+</body>
+</html>
