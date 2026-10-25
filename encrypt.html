@@ -21,8 +21,8 @@
   <main>
     <p class="note">파일은 이 브라우저 안에서만 처리되며 어디에도 전송되지 않습니다.
       암호화한 <code>.txt.enc</code> 파일을 저장소의 <code>novels/</code> 폴더에 올리면 리더에서 비밀번호로 열 수 있습니다.</p>
-    <label for="files">텍스트 파일 (여러 개 선택 가능, UTF-8 / EUC-KR 자동 인식)</label>
-    <input type="file" id="files" multiple accept=".txt,.enc,text/plain">
+    <label for="files">텍스트 파일 또는 표지 이미지 (여러 개 선택 가능, UTF-8 / EUC-KR 자동 인식)</label>
+    <input type="file" id="files" multiple accept=".txt,.enc,text/plain,image/*">
     <label for="pw1">비밀번호</label>
     <input type="password" id="pw1" autocomplete="new-password">
     <label for="pw2">비밀번호 확인 (암호화할 때만)</label>
@@ -36,12 +36,12 @@
       비밀번호를 잊으면 파일을 되살릴 수 없습니다.</p>
   </main>
   <script type="module">
-    import { encryptText, decryptText, decodeText } from './assets/wncrypt.js';
+    import { encryptText, encryptBytes, decryptBytes, decodeText, imageTypeOf } from './assets/wncrypt.js';
     const $ = (id) => document.getElementById(id);
     const log = (msg) => { const li = document.createElement('li'); li.textContent = msg; $('log').prepend(li); };
-    const download = (name, text) => {
+    const download = (name, data, type = 'text/plain;charset=utf-8') => {
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+      a.href = URL.createObjectURL(new Blob([data], { type }));
       a.download = name;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -55,12 +55,16 @@
       for (const f of files) {
         try {
           if (decrypt) {
-            const text = await decryptText(await f.text(), pw);
-            download(f.name.replace(/\.enc$/i, '').replace(/(\.txt)?$/i, '.txt'), text);
+            const { bytes, type } = await decryptBytes(await f.text(), pw);
+            const name = f.name.replace(/\.enc$/i, '');
+            download(/\.\w+$/.test(name) ? name : name + '.txt', bytes, type);
             log(`✅ 복호화: ${f.name}`);
           } else {
-            const text = decodeText(new Uint8Array(await f.arrayBuffer()));
-            download(f.name + '.enc', await encryptText(text, pw));
+            const bytes = new Uint8Array(await f.arrayBuffer());
+            const type = imageTypeOf(f.name);
+            download(f.name + '.enc', type
+              ? await encryptBytes(bytes, pw, { type, compress: false })
+              : await encryptText(decodeText(bytes), pw));
             log(`✅ 암호화: ${f.name} → ${f.name}.enc`);
           }
         } catch (e) {

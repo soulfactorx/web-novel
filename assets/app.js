@@ -1,4 +1,4 @@
-import { decodeText, decryptText, isEncrypted, WrongPasswordError } from './wncrypt.js';
+import { decodeText, decryptText, decryptBytes, isEncrypted, WrongPasswordError } from './wncrypt.js';
 
 const $ = (id) => document.getElementById(id);
 const PAGE_CHARS = 15000;   // 한 페이지 최대 글자 수 (화 단위로 먼저 나눈다)
@@ -259,6 +259,9 @@ function renderPage(pageIdx) {
     frag.append(p);
   }
   content.replaceChildren(frag);
+  const cover = pageIdx === 0 && coverOf(cur.path);
+  $('doc-cover').replaceChildren(cover ? coverEl(cover, doc.title, 'large') : '');
+  $('doc-cover').hidden = !cover;
   renderPager();
 }
 function renderPager() {
@@ -362,6 +365,8 @@ async function openReader(path) {
   renderTabs();
   document.title = doc.title + ' - 웹소설 리더';
   $('doc-title').textContent = doc.title;
+  const folder = manifest?.files.find((f) => f.path === path)?.folder;
+  $('doc-title').href = folder && manifest.files.filter((f) => f.folder === folder).length > 1 ? workHash(folder) : '#/';
   $('btn-toc').textContent = doc.toc.length ? `☰ 목차 (${doc.toc.length})` : '☰ 페이지';
   renderToc();
   showView('reader');
@@ -370,20 +375,96 @@ async function openReader(path) {
   else goPage(0);
 }
 
+// ---------- 표지 ----------
+const coverCache = new Map(); // 경로 → Promise<objectURL | null>
+function coverOf(path) {
+  if (!manifest) return null;
+  const f = manifest.files.find((x) => x.path === path);
+  return f ? f.cover || (manifest.folderCovers || {})[f.folder] || null : null;
+}
+function loadCover(path) {
+  if (!coverCache.has(path)) {
+    coverCache.set(path, (async () => {
+      const res = await fetch(fileUrl(path));
+      if (!res.ok) return null;
+      if (!/\.enc$/i.test(path)) return URL.createObjectURL(await res.blob());
+      // 암호화된 표지는 이미 입력한(저장된) 비밀번호로만 조용히 시도한다
+      const payload = await res.text();
+      for (const pw of savedPasswords()) {
+        try {
+          const { bytes, type } = await decryptBytes(payload, pw);
+          return URL.createObjectURL(new Blob([bytes], { type }));
+        } catch (e) { if (!(e instanceof WrongPasswordError)) return null; }
+      }
+      coverCache.delete(path); // 나중에 비밀번호를 입력하면 다시 시도
+      return null;
+    })().catch(() => null));
+  }
+  return coverCache.get(path);
+}
+// 표지 이미지(없으면 제목으로 만든 기본 표지)
+function coverEl(path, title, cls = '') {
+  let h = 0;
+  for (const ch of title) h = (h * 31 + ch.codePointAt(0)) % 360;
+  const box = el('div', { class: 'cover ' + cls, style: `--h:${h}` },
+    el('span', { class: 'cover-title' }, title));
+  if (path) {
+    if (/\.enc$/i.test(path)) box.append(el('span', { class: 'cover-lock', title: '암호화된 표지' }, '🔒'));
+    loadCover(path).then((url) => {
+      if (!url) return;
+      const img = el('img', { alt: '', src: url });
+      img.onload = () => { box.classList.add('has-img'); box.replaceChildren(img); };
+    });
+  }
+  return box;
+}
+
 // ---------- 서재 ----------
-function itemLink(path, title, metaText) {
+const workHash = (folder) => '#/work/' + encodeURIComponent(folder);
+function itemLink(path, title, metaText, cover) {
   const pr = progress[path];
   return el('li', {}, el('a', { href: readHash(path) },
-    el('span', {}, title),
-    el('span', { class: 'meta' }, [metaText, pr && `${fmtPct(pr.percent)} · ${fmtAgo(pr.t)}`].filter(Boolean).join(' · ')),
-    pr ? el('div', { class: 'bar' }, el('div', { style: `width:${pr.percent * 100}%` })) : null,
+    cover !== undefined ? coverEl(cover, title, 'thumb') : null,
+    el('div', { class: 'info' },
+      el('span', {}, title),
+      el('span', { class: 'meta' }, [metaText, pr && `${fmtPct(pr.percent)} · ${fmtAgo(pr.t)}`].filter(Boolean).join(' · ')),
+      pr ? el('div', { class: 'bar' }, el('div', { style: `width:${pr.percent * 100}%` })) : null),
   ));
 }
-function renderLibrary() {
+// 작품 = 폴더 하나 (최상위에 바로 있는 파일은 각각 한 작품)
+function worksOf(files) {
+  const works = new Map();
+  for (const f of files) {
+    const key = f.folder || '/' + f.path;
+    if (!works.has(key)) works.set(key, { folder: f.folder, title: f.folder ? f.folder.split('/').pop() : f.title, files: [] });
+    works.get(key).files.push(f);
+  }
+  for (const w of works.values()) {
+    w.cover = (w.folder && (manifest.folderCovers || {})[w.folder]) || w.files.find((f) => f.cover)?.cover || null;
+    w.last = w.files.map((f) => progress[f.path] && { f, ...progress[f.path] }).filter(Boolean).sort((a, b) => b.t - a.t)[0];
+  }
+  return [...works.values()];
+}
+function workCard(w) {
+  const single = w.files.length === 1;
+  const href = single ? readHash(w.files[0].path) : workHash(w.folder);
+  const meta = [single ? fmtSize(w.files[0].size) : `${w.files.length}개 파일`];
+  if (w.files.some((f) => f.encrypted)) meta.unshift('🔒');
+  if (w.last) meta.push(fmtPct(w.last.percent));
+  return el('a', { class: 'card', href, title: w.folder || w.files[0].path },
+    coverEl(w.cover, w.title),
+    el('span', { class: 'card-title' }, w.title),
+    el('span', { class: 'meta' }, meta.join(' · ')),
+    w.last ? el('div', { class: 'bar' }, el('div', { style: `width:${w.last.percent * 100}%` })) : null);
+}
+function resetView(title) {
   cur = null;
   renderTabs();
-  document.title = '웹소설 리더';
+  document.title = title;
   $('progress-line').style.width = '0';
+}
+function renderLibrary() {
+  resetView('웹소설 리더');
   showView('library');
   const files = manifest ? manifest.files : [];
   const known = new Set(files.map((f) => f.path));
@@ -392,7 +473,8 @@ function renderLibrary() {
     .filter(([p]) => !manifest || known.has(p))
     .sort((a, b) => b[1].t - a[1].t).slice(0, 8);
   $('recent-section').hidden = !recent.length;
-  $('recent').replaceChildren(...recent.map(([p, pr]) => itemLink(p, pr.title || titleOf(p), p.split('/').slice(1, -1).join(' / '))));
+  $('recent').replaceChildren(...recent.map(([p, pr]) =>
+    itemLink(p, pr.title || titleOf(p), p.split('/').slice(1, -1).join(' / '), coverOf(p))));
 
   const box = $('all');
   if (!manifest) {
@@ -406,24 +488,26 @@ function renderLibrary() {
     box.replaceChildren(el('p', { class: 'meta' }, files.length ? '검색 결과가 없습니다.' : 'novels/ 폴더에 .txt 파일을 올리면 여기에 표시됩니다.'));
     return;
   }
-  const groups = new Map();
-  for (const f of shown) {
-    if (!groups.has(f.folder)) groups.set(f.folder, []);
-    groups.get(f.folder).push(f);
-  }
-  const collapsed = store.get('collapsed', {});
-  box.replaceChildren(...[...groups].map(([folder, list]) => {
-    const ul = el('ul', { class: 'list' }, ...list.map((f) => itemLink(f.path, f.title, (f.encrypted ? '🔒 ' : '') + fmtSize(f.size))));
-    if (!folder) return ul;
-    const det = el('details', { class: 'folder', ...(collapsed[folder] && !q ? {} : { open: '' }) },
-      el('summary', {}, `📁 ${folder} (${list.length})`), ul);
-    det.addEventListener('toggle', () => {
-      const c = store.get('collapsed', {});
-      if (det.open) delete c[folder]; else c[folder] = true;
-      store.set('collapsed', c);
-    });
-    return det;
-  }));
+  box.replaceChildren(el('div', { class: 'grid' }, ...worksOf(shown).map(workCard)));
+}
+function renderWork(folder) {
+  const list = manifest ? manifest.files.filter((f) => f.folder === folder) : [];
+  if (!list.length) { location.replace('#/'); return; }
+  const [w] = worksOf(list);
+  resetView(w.title + ' - 웹소설 리더');
+  showView('work');
+  const next = w.last ? w.last.f : list[0];
+  $('work-head').replaceChildren(
+    coverEl(w.cover, w.title, 'large'),
+    el('div', { class: 'work-info' },
+      el('a', { href: '#/', class: 'meta' }, '← 서재'),
+      el('h2', {}, w.title),
+      el('p', { class: 'meta' }, [folder.includes('/') ? folder : '', `${list.length}개 파일`].filter(Boolean).join(' · ')),
+      el('a', { class: 'button primary', href: readHash(next.path) }, w.last ? `이어 읽기 · ${next.title}` : '처음부터 읽기')));
+  // 파일마다 표지가 따로 있을 때만 목록에 작은 표지를 보여준다
+  const perFile = list.some((f) => f.cover && f.cover !== w.cover);
+  $('work-files').replaceChildren(...list.map((f) =>
+    itemLink(f.path, f.title, (f.encrypted ? '🔒 ' : '') + fmtSize(f.size), perFile ? f.cover || w.cover : undefined)));
 }
 async function loadManifest() {
   try {
@@ -436,6 +520,8 @@ async function loadManifest() {
 function route() {
   saveProgress();
   closePanels();
+  const work = location.hash.match(/^#\/work\/(.+)$/);
+  if (work) { renderWork(decodeURIComponent(work[1])); return; }
   const m = location.hash.match(/^#\/read\/(.+)$/);
   if (m) {
     const path = decodeURIComponent(m[1]);

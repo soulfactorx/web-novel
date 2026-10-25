@@ -28,12 +28,18 @@
     </section>
   </main>
 
+  <main id="work" class="view" hidden>
+    <div class="work-head" id="work-head"></div>
+    <ul class="list" id="work-files"></ul>
+  </main>
+
   <main id="reader" class="view" hidden>
     <div class="reader-bar">
       <button id="btn-toc" title="목차">☰ 목차</button>
-      <span class="doc-title" id="doc-title"></span>
+      <a class="doc-title" id="doc-title" title="작품 목록으로"></a>
       <span class="progress-text" id="progress-text"></span>
     </div>
+    <figure class="doc-cover" id="doc-cover" hidden></figure>
     <div class="pager" id="pager-top"></div>
     <article id="content" class="content"></article>
     <div class="pager" id="pager-bottom"></div>

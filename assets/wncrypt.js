@@ -1,8 +1,13 @@
 // 웹소설 리더용 암호화/복호화 모듈 (브라우저와 Node 18+ 양쪽에서 동작)
-// 형식: JSON { format, v, kdf{PBKDF2/SHA-256}, cipher{AES-GCM}, compression, data }
-// 평문은 UTF-8 로 정규화한 뒤 gzip 압축 → AES-256-GCM 암호화 → base64 로 저장한다.
+// 형식: JSON { format, v, type, kdf{PBKDF2/SHA-256}, cipher{AES-GCM}, compression, data }
+// 텍스트는 UTF-8 로 정규화한 뒤 gzip 압축 → AES-256-GCM 암호화 → base64 로 저장한다.
+// 이미지(표지)는 이미 압축된 형식이라 압축 없이 암호화한다.
 
 export const FORMAT = 'web-novel-enc';
+export const IMAGE_TYPES = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', avif: 'image/avif',
+};
+export const imageTypeOf = (name) => IMAGE_TYPES[(name.replace(/\.enc$/i, '').match(/\.(\w+)$/) || [])[1]?.toLowerCase()];
 const ITERATIONS = 600000;
 
 const subtle = globalThis.crypto.subtle;
@@ -61,27 +66,34 @@ export function isEncrypted(textOrBytes) {
   return head.trimStart().startsWith('{') && head.includes(FORMAT);
 }
 
-export async function encryptText(text, password) {
+// 임의의 바이트(텍스트·이미지)를 암호화. type 은 복호화 후 용도를 알려주는 MIME 타입.
+export async function encryptBytes(bytes, password, { type = 'text/plain', compress = true } = {}) {
   const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(password, salt, ITERATIONS);
-  const packed = await pipeBytes(enc.encode(text), new CompressionStream('gzip'));
+  const packed = compress ? await pipeBytes(bytes, new CompressionStream('gzip')) : bytes;
   const ct = new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv }, key, packed));
   return JSON.stringify({
     format: FORMAT,
     v: 1,
+    type,
     kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: ITERATIONS, salt: bytesToB64(salt) },
     cipher: { name: 'AES-GCM', iv: bytesToB64(iv) },
-    compression: 'gzip',
+    compression: compress ? 'gzip' : 'none',
     data: bytesToB64(ct),
   });
+}
+
+export function encryptText(text, password) {
+  return encryptBytes(enc.encode(text), password, { type: 'text/plain', compress: true });
 }
 
 export class WrongPasswordError extends Error {
   constructor() { super('비밀번호가 올바르지 않습니다.'); this.name = 'WrongPasswordError'; }
 }
 
-export async function decryptText(payload, password) {
+// 반환: { bytes, type }
+export async function decryptBytes(payload, password) {
   const obj = typeof payload === 'string' ? JSON.parse(payload) : payload;
   if (obj.format !== FORMAT || obj.v !== 1) throw new Error('지원하지 않는 암호화 파일 형식입니다.');
   const key = await deriveKey(password, b64ToBytes(obj.kdf.salt), obj.kdf.iterations);
@@ -94,5 +106,9 @@ export async function decryptText(payload, password) {
     throw new WrongPasswordError();
   }
   if (obj.compression === 'gzip') plain = await pipeBytes(plain, new DecompressionStream('gzip'));
-  return new TextDecoder('utf-8').decode(plain);
+  return { bytes: plain, type: obj.type || 'text/plain' };
+}
+
+export async function decryptText(payload, password) {
+  return new TextDecoder('utf-8').decode((await decryptBytes(payload, password)).bytes);
 }

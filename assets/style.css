@@ -64,28 +64,74 @@ button.icon { border: none; background: none; padding: 4px 8px; }
 .progress-line div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 
 /* 서재 */
-#library, #message { max-width: 820px; margin: 0 auto; padding: 16px; }
+#library, #work, #message { max-width: 960px; margin: 0 auto; padding: 16px; }
 #message { color: var(--muted); padding-top: 48px; text-align: center; }
 h2 { font-size: 17px; margin: 18px 0 8px; }
+.meta { font-size: 12px; color: var(--muted); }
 .lib-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lib-head input { max-width: 220px; width: 100%; }
-.folder > summary { cursor: pointer; padding: 8px 4px; font-weight: 600; color: var(--muted); }
 .list { list-style: none; margin: 0; padding: 0; }
 .list li a {
-  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+  display: flex; gap: 12px; align-items: center;
   padding: 10px 8px; border-bottom: 1px solid var(--line); color: var(--fg); border-radius: 4px;
 }
 .list li a:hover { background: var(--hover); }
-.list .meta { font-size: 12px; color: var(--muted); }
+.list .info { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; }
+.list .info > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar { grid-column: 1 / -1; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .bar div { height: 100%; background: var(--accent); }
+
+/* 표지 */
+.cover {
+  position: relative; aspect-ratio: 3 / 4; width: 100%; border-radius: 6px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; padding: 10%;
+  background: linear-gradient(160deg, hsl(var(--h) 45% 62%), hsl(calc(var(--h) + 40) 40% 38%));
+  color: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .18);
+}
+.cover.has-img { padding: 0; background: var(--line); }
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover-title {
+  font-family: var(--reader-font); font-weight: 700; text-align: center; word-break: keep-all;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .35); font-size: 15px; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cover-lock { position: absolute; right: 6px; bottom: 4px; font-size: 13px; }
+.cover.thumb { width: 42px; flex-shrink: 0; padding: 3px; border-radius: 3px; }
+.cover.thumb .cover-title { font-size: 9px; -webkit-line-clamp: 4; }
+.cover.thumb .cover-lock { font-size: 9px; right: 2px; bottom: 1px; }
+.cover.large { width: 160px; flex-shrink: 0; }
+.cover.large .cover-title { font-size: 18px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px 16px; }
+.card { display: flex; flex-direction: column; gap: 4px; color: var(--fg); min-width: 0; }
+.card .cover { transition: transform .15s; }
+.card:hover .cover { transform: translateY(-2px); }
+.card-title { font-weight: 600; font-size: 14px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .bar { margin-top: 2px; }
+
+.work-head { display: flex; gap: 20px; align-items: flex-end; margin: 8px 0 20px; }
+.work-info { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+.work-info h2 { font-size: 22px; margin: 0; word-break: keep-all; }
+a.button { display: inline-block; padding: 7px 14px; border-radius: 6px; margin-top: 6px; }
+a.button.primary { background: var(--accent); color: #fff; }
+
+.doc-cover { margin: 20px auto 0; display: flex; justify-content: center; }
+.doc-cover .cover.large { width: min(240px, 60vw); }
+
+@media (max-width: 480px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 16px 12px; }
+  .cover-title { font-size: 13px; }
+  .cover.large { width: 120px; }
+  .work-head { gap: 14px; }
+}
 
 /* 리더 */
 .reader-bar {
   max-width: var(--width); margin: 0 auto; padding: 12px 16px 0;
   display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px;
 }
-.doc-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-title { flex: 1; color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pager {
   max-width: var(--width); margin: 0 auto; padding: 10px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
