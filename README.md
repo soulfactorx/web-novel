@@ -92,6 +92,18 @@ node tools/encrypt.mjs --decrypt novels/작품B/본편.txt.enc
 또 암호화하지 않은 `.txt` 는 저장소와 사이트 주소에서 파일 그대로 받을 수 있으므로,
 보호가 의미 있으려면 **암호화(.enc)와 함께** 써야 합니다.
 
+## 새로고침과 웹앱 설치
+
+- 상단의 **⟳ 버튼**은 브라우저 캐시를 건너뛰고 리더 코드와 소설 목록을 다시 받아 새로 고칩니다 (읽던 위치는 유지).
+  새 파일을 올렸거나 기능이 업데이트됐는데 화면이 그대로일 때 누르세요. 보기 설정 패널 아래쪽에서 현재 버전(커밋 해시)도 확인할 수 있습니다.
+- **웹앱 설치**
+  - Android / PC Chrome·Edge: 보기 설정 → **홈 화면에 설치**, 또는 주소창의 설치 아이콘
+  - iPhone / iPad: Safari 공유 버튼 → **홈 화면에 추가**
+- 설치하면 주소창 없이 앱처럼 열리고, 한 번 연 파일은 오프라인에서도 읽을 수 있습니다.
+  항상 서버의 최신 파일을 먼저 확인하고, 연결이 없을 때만 저장된 사본을 씁니다.
+- iPhone 에서는 홈 화면 앱과 Safari 의 저장 공간이 따로라서 읽기 기록·비밀번호가 공유되지 않습니다.
+  필요하면 **읽기 기록 내보내기/가져오기** 로 옮기세요.
+
 ## 읽기 기록
 
 읽은 위치는 브라우저(localStorage)에 저장되므로 기기마다 따로입니다. 다른 기기로 옮기려면
@@ -111,6 +123,7 @@ python3 -m http.server         # http://localhost:8000
 | `index.html`, `assets/app.js`, `assets/style.css` | 리더 |
 | `assets/wncrypt.js` | 암호화/복호화 (브라우저·Node 공용) |
 | `assets/config.js` | 사이트 설정 (복사·캡처 방지) |
+| `sw.js`, `manifest.webmanifest`, `assets/icons/` | 웹앱(PWA) 설치·오프라인 |
 | `assets/protect.js` | 복사·캡처 방지 동작 |
 | `encrypt.html` | 브라우저용 암호화 도구 |
 | `tools/build-index.mjs` | `novels/index.json` 목록 생성 (배포 시 자동 실행) |

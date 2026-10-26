@@ -27,6 +27,10 @@ jobs:
           node-version: 22
       - name: 소설 목록 생성
         run: node tools/build-index.mjs
+      - name: 버전 표시 (캐시 갱신용)
+        run: |
+          v="${GITHUB_SHA::7}"
+          sed -i "s/'dev'/'$v'/" assets/version.js sw.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
