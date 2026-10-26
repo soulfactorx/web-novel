@@ -1,5 +1,6 @@
 import { decodeText, decryptText, decryptBytes, isEncrypted, WrongPasswordError } from './wncrypt.js';
 import config from './config.js';
+import VERSION from './version.js';
 import { initProtect } from './protect.js';
 
 const $ = (id) => document.getElementById(id);
@@ -649,8 +650,49 @@ document.addEventListener('keydown', (e) => {
 });
 window.addEventListener('hashchange', route);
 
+// ---------- 새로고침 / 웹앱 ----------
+// 브라우저 캐시를 건너뛰고 앱 파일과 소설 목록을 다시 받은 뒤 새로 고친다 (읽던 위치는 유지)
+const APP_FILES = ['./', 'index.html', 'manifest.webmanifest', 'novels/index.json',
+  ...['app', 'config', 'protect', 'version', 'wncrypt'].map((n) => `assets/${n}.js`), 'assets/style.css'];
+async function hardRefresh() {
+  saveProgress();
+  $('btn-refresh').classList.add('spin');
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    await Promise.allSettled([reg?.update(), ...APP_FILES.map((u) => fetch(u, { cache: 'reload' }))]);
+  } finally {
+    location.reload();
+  }
+}
+$('btn-refresh').addEventListener('click', hardRefresh);
+$('btn-update').addEventListener('click', hardRefresh);
+$('app-version').textContent = VERSION;
+
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  $('btn-install').hidden = false;
+});
+$('btn-install').addEventListener('click', async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $('btn-install').hidden = true;
+});
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+$('install-hint').hidden = standalone || !/iphone|ipad|ipod/i.test(navigator.userAgent);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
 history.scrollRestoration = 'manual';
 initProtect(config.protect);
 applySettings();
-await loadManifest();
+// 스타일이 적용되기 전에 읽던 위치로 스크롤하면 위치가 어긋나므로 기다린다
+const css = document.querySelector('link[rel=stylesheet]');
+await Promise.all([
+  loadManifest(),
+  css.sheet ? null : new Promise((r) => { css.addEventListener('load', r, { once: true }); css.addEventListener('error', r, { once: true }); }),
+  document.fonts?.ready,
+]);
 route();
