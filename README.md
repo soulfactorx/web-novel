@@ -75,6 +75,22 @@ node tools/encrypt.mjs --decrypt novels/작품B/본편.txt.enc
 - 리더에서 "이 기기에 비밀번호 기억하기"를 체크하면 그 브라우저에 비밀번호가 저장됩니다. 공용 기기에서는 체크하지 마세요.
   체크하지 않아도 브라우저 탭을 닫기 전까지는 다시 묻지 않습니다.
 
+## 복사·캡처 방지
+
+`assets/config.js` 의 `protect` 항목으로 켜고 끕니다 (기본값: 문구 워터마크만 꺼짐).
+
+| 설정 | 동작 |
+| --- | --- |
+| `copy` | 본문 선택·복사·우클릭·드래그 막기, Ctrl+A/C/S/P/U 막기, 인쇄 시 빈 페이지 |
+| `blurOnLeave` | 창이 포커스를 잃거나 다른 탭으로 가면 본문을 흐리게 가림 |
+| `printScreen` | PrintScreen 키를 누르면 본문을 잠시 가리고 클립보드를 비움 |
+| `watermark` | 본문 위에 옅은 문구를 반복 표시 (예: `'개인 열람용'`) — 캡처본 유출 억제용 |
+
+**한계**: 웹페이지에서는 복사·캡처를 완전히 막을 수 없습니다. 휴대폰 스크린샷, 다른 기기로 화면 촬영,
+개발자 도구, 브라우저의 읽기 모드 등은 막지 못하며, 일반적인 방법을 번거롭게 만드는 정도입니다.
+또 암호화하지 않은 `.txt` 는 저장소와 사이트 주소에서 파일 그대로 받을 수 있으므로,
+보호가 의미 있으려면 **암호화(.enc)와 함께** 써야 합니다.
+
 ## 읽기 기록
 
 읽은 위치는 브라우저(localStorage)에 저장되므로 기기마다 따로입니다. 다른 기기로 옮기려면
@@ -93,6 +109,8 @@ python3 -m http.server         # http://localhost:8000
 | --- | --- |
 | `index.html`, `assets/app.js`, `assets/style.css` | 리더 |
 | `assets/wncrypt.js` | 암호화/복호화 (브라우저·Node 공용) |
+| `assets/config.js` | 사이트 설정 (복사·캡처 방지) |
+| `assets/protect.js` | 복사·캡처 방지 동작 |
 | `encrypt.html` | 브라우저용 암호화 도구 |
 | `tools/build-index.mjs` | `novels/index.json` 목록 생성 (배포 시 자동 실행) |
 | `tools/encrypt.mjs` | 명령줄 암호화 도구 |

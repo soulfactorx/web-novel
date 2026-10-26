@@ -1,4 +1,6 @@
 import { decodeText, decryptText, decryptBytes, isEncrypted, WrongPasswordError } from './wncrypt.js';
+import config from './config.js';
+import { initProtect } from './protect.js';
 
 const $ = (id) => document.getElementById(id);
 const PAGE_CHARS = 15000;   // 한 페이지 최대 글자 수 (화 단위로 먼저 나눈다)
@@ -615,6 +617,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('hashchange', route);
 
 history.scrollRestoration = 'manual';
+initProtect(config.protect);
 applySettings();
 await loadManifest();
 route();
