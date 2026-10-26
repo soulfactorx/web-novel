@@ -179,3 +179,20 @@ dialog input[type=password] { width: 100%; margin: 8px 0; }
 .check { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
 .check input { margin: 0; }
 .error { color: #d33; font-size: 13px; min-height: 1em; margin: 6px 0; }
+
+/* 본문 보호 (assets/config.js 의 protect 설정) */
+:root[data-protect] #reader { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+:root[data-protect] #reader img { pointer-events: none; }
+:root.shielded #reader .content, :root.shielded #reader .doc-cover { filter: blur(16px); }
+:root.shielded #reader::before {
+  content: "창으로 돌아오면 다시 표시됩니다"; position: fixed; top: 45%; left: 50%; transform: translateX(-50%); z-index: 6;
+  padding: 8px 16px; border-radius: 20px; background: var(--panel); border: 1px solid var(--line);
+  color: var(--muted); font-size: 14px; white-space: nowrap;
+}
+:root[data-watermark] #reader::after {
+  content: ""; position: fixed; inset: 0; z-index: 5; pointer-events: none; background-image: var(--watermark);
+}
+@media print {
+  :root[data-protect] body > * { display: none !important; }
+  :root[data-protect] body::after { content: "이 페이지는 인쇄할 수 없습니다."; }
+}
