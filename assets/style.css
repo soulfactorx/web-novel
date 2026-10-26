@@ -29,6 +29,7 @@
 html { scroll-padding-top: 64px; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   font: 15px/1.5 -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
   -webkit-text-size-adjust: 100%;
 }
@@ -53,6 +54,8 @@ button.icon { border: none; background: none; padding: 4px 8px; }
 .topbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
   padding: 6px 10px; background: var(--bg); border-bottom: 1px solid var(--line);
+  /* 카메라(노치·펀치홀) 영역까지 화면을 쓰되, 버튼은 그 아래에 오도록 */
+  padding-top: calc(6px + env(safe-area-inset-top));
 }
 .brand { font-weight: 600; white-space: nowrap; color: var(--fg); }
 .tabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; scrollbar-width: none; }
@@ -156,6 +159,7 @@ a.button.primary { background: var(--accent); color: #fff; }
 .panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 20; width: min(340px, 90vw);
   background: var(--panel); border-left: 1px solid var(--line); padding: 12px 16px; overflow-y: auto;
+  padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: calc(12px + env(safe-area-inset-bottom));
   box-shadow: -8px 0 24px rgba(0, 0, 0, .12);
 }
 #toc-panel { left: 0; right: auto; border-left: none; border-right: 1px solid var(--line); }
@@ -201,3 +205,5 @@ dialog input[type=password] { width: 100%; margin: 8px 0; }
   :root[data-protect] body > * { display: none !important; }
   :root[data-protect] body::after { content: "이 페이지는 인쇄할 수 없습니다."; }
 }
+#toc-panel { padding-left: calc(16px + env(safe-area-inset-left)); }
+#settings-panel { padding-right: calc(16px + env(safe-area-inset-right)); }
