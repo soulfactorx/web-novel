@@ -29,6 +29,7 @@ let settings = { ...DEFAULTS, ...store.get('settings', {}) };
 const docs = new Map();      // path → 파싱된 문서 (최근 사용 순)
 let cur = null;              // { path, doc, page }
 let restoring = false;
+let pendingNav = null;        // 이전/다음 화 이동: { path, from }
 
 // ---------- 유틸 ----------
 const titleOf = (path) => path.split('/').pop().replace(/\.enc$/i, '').replace(/\.txt$/i, '');
@@ -218,8 +219,11 @@ function renderTabs() {
   )));
   nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
-function addTab(path) {
-  if (!tabs.includes(path)) tabs.push(path);
+function addTab(path, replace) {
+  const at = tabs.indexOf(replace);
+  if (tabs.includes(path)) { if (at >= 0 && replace !== path) tabs.splice(at, 1); }
+  else if (at >= 0) tabs[at] = path; // 이전/다음 화로 넘어가면 같은 탭을 이어 쓴다
+  else tabs.push(path);
   while (tabs.length > MAX_TABS) tabs.splice(tabs.findIndex((p) => p !== path), 1);
   store.set('tabs', tabs);
 }
@@ -272,12 +276,38 @@ function renderPager() {
     const sel = el('select', { 'aria-label': '페이지 이동', onchange: (e) => goPage(+e.target.value) });
     doc.pages.forEach((p, i) => sel.append(new Option(`${i + 1} / ${doc.pages.length}${p.label ? ' · ' + p.label : ''}`, i)));
     sel.value = page;
+    const prevFile = page === 0 && sibling(-1);
+    const nextFile = page === doc.pages.length - 1 && sibling(1);
     $(id).replaceChildren(
-      el('button', { onclick: () => goPage(page - 1), ...(page === 0 ? { disabled: '' } : {}) }, '← 이전'),
+      el('button', { onclick: () => step(-1), title: prevFile ? prevFile.title : '',
+        ...(page === 0 && !prevFile ? { disabled: '' } : {}) }, prevFile ? '← 이전 화' : '← 이전'),
       sel,
-      el('button', { onclick: () => goPage(page + 1), ...(page === doc.pages.length - 1 ? { disabled: '' } : {}) }, '다음 →'),
+      el('button', { onclick: () => step(1), title: nextFile ? nextFile.title : '',
+        ...(page === doc.pages.length - 1 && !nextFile ? { disabled: '' } : {}) }, nextFile ? '다음 화 →' : '다음 →'),
     );
   }
+}
+// 같은 폴더에서 앞(-1)/뒤(1) 파일
+function sibling(dir) {
+  if (!manifest || !cur) return null;
+  const me = manifest.files.find((f) => f.path === cur.path);
+  if (!me) return null;
+  const list = manifest.files.filter((f) => f.folder === me.folder);
+  return list[list.indexOf(me) + dir] || null;
+}
+// 페이지 이동, 파일의 처음/끝이면 이전/다음 화로
+function step(dir) {
+  if (!cur) return;
+  const i = cur.page + dir;
+  if (i >= 0 && i < cur.doc.pages.length) { goPage(i); return; }
+  const f = sibling(dir);
+  if (!f) return;
+  if (dir > 0) { // 다음 화로 넘어가면 지금 화는 다 읽은 것으로 기록
+    progress[cur.path] = { ...progress[cur.path], offset: cur.doc.length, percent: 1, title: cur.doc.title, t: Date.now() };
+    store.set('progress', progress);
+  }
+  pendingNav = { path: f.path, from: cur.path };
+  location.hash = readHash(f.path);
 }
 function goPage(i, lineIdx) {
   if (!cur || i < 0 || i >= cur.doc.pages.length) return;
@@ -363,7 +393,9 @@ async function openReader(path) {
     return;
   }
   cur = { path, doc, page: -1 };
-  addTab(path);
+  const nav = pendingNav && pendingNav.path === path ? pendingNav : null;
+  pendingNav = null;
+  addTab(path, nav?.from);
   renderTabs();
   document.title = doc.title + ' - 웹소설 리더';
   $('doc-title').textContent = doc.title;
@@ -373,7 +405,8 @@ async function openReader(path) {
   renderToc();
   showView('reader');
   const saved = progress[path];
-  if (saved) scrollToOffset(Math.min(saved.offset, doc.length), true);
+  if (nav) goPage(0); // 이전/다음 화로 넘어오면 처음부터
+  else if (saved) scrollToOffset(Math.min(saved.offset, doc.length), true);
   else goPage(0);
 }
 
@@ -611,8 +644,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePanels();
   if (!cur || $('reader').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.target.closest('input, select, textarea, dialog')) return;
-  if (e.key === 'ArrowLeft') goPage(cur.page - 1);
-  else if (e.key === 'ArrowRight') goPage(cur.page + 1);
+  if (e.key === 'ArrowLeft') step(-1);
+  else if (e.key === 'ArrowRight') step(1);
 });
 window.addEventListener('hashchange', route);
 
