@@ -42,7 +42,9 @@ button:hover { background: var(--hover); }
 button:disabled { opacity: .4; cursor: default; }
 button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 button.icon { border: none; background: none; padding: 4px 8px; }
-#btn-refresh { font-size: 18px; line-height: 1; }
+#btn-refresh, #btn-fullscreen { font-size: 18px; line-height: 1; }
+.topbar { transition: transform .2s; }
+:root.bar-hidden .topbar { transform: translateY(-100%); }
 #btn-refresh.spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 [hidden] { display: none !important; }

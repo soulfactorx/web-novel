@@ -243,7 +243,7 @@ function closeTab(path) {
 
 // ---------- 리더 ----------
 const content = $('content');
-const topOffset = () => document.querySelector('.topbar').offsetHeight + 4;
+const topOffset = () => (document.documentElement.classList.contains('bar-hidden') ? 0 : document.querySelector('.topbar').offsetHeight) + 4;
 
 function renderPage(pageIdx) {
   const { doc } = cur;
@@ -632,9 +632,16 @@ $('btn-forget').addEventListener('click', () => {
 });
 
 let scrollTimer = 0;
+let lastY = 0;
 window.addEventListener('scroll', () => {
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(saveProgress, 200);
+  // 전체화면에서 읽는 중에는 아래로 스크롤하면 상단 바를 숨기고, 위로 올리면 보인다
+  const y = window.scrollY;
+  if (isFullscreen() && !$('reader').hidden && !restoring && Math.abs(y - lastY) > 8) {
+    document.documentElement.classList.toggle('bar-hidden', y > lastY && y > 80);
+  }
+  lastY = y;
 }, { passive: true });
 window.addEventListener('pagehide', saveProgress);
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
@@ -645,10 +652,31 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePanels();
   if (!cur || $('reader').hidden || e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.target.closest('input, select, textarea, dialog')) return;
-  if (e.key === 'ArrowLeft') step(-1);
+  if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+  else if (e.key === 'ArrowLeft') step(-1);
   else if (e.key === 'ArrowRight') step(1);
 });
 window.addEventListener('hashchange', route);
+
+// ---------- 전체화면 ----------
+const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+const isFullscreen = () => !!fsElement();
+function toggleFullscreen() {
+  const r = document.documentElement;
+  if (isFullscreen()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  else (r.requestFullscreen || r.webkitRequestFullscreen).call(r, { navigationUI: 'hide' })?.catch?.(() => {});
+}
+function onFullscreenChange() {
+  const on = isFullscreen();
+  $('btn-fullscreen').textContent = on ? '⤡' : '⛶';
+  $('btn-fullscreen').title = on ? '전체화면 끝내기 (F)' : '전체화면 (F)';
+  if (!on) document.documentElement.classList.remove('bar-hidden');
+}
+// iPhone Safari 처럼 전체화면을 지원하지 않는 브라우저에서는 버튼을 숨긴다 (홈 화면 앱으로 설치하면 주소창 없이 보임)
+$('btn-fullscreen').hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+$('btn-fullscreen').addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
 // ---------- 새로고침 / 웹앱 ----------
 // 브라우저 캐시를 건너뛰고 앱 파일과 소설 목록을 다시 받은 뒤 새로 고친다 (읽던 위치는 유지)
