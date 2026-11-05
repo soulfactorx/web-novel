@@ -170,4 +170,4 @@ python3 -m http.server         # http://localhost:8000
 ## 라이선스
 
 - **리더 코드** (`novels/` 폴더를 제외한 전부): [MIT License](LICENSE) — `novels/` 폴더의 콘텐츠에는 적용되지 않습니다.
-- **소설 원고·표지** (`novels/` 폴더): © soulfactorx. All rights reserved. 무단 전재·복제·배포를 금지합니다. 자세한 내용은 [novels/LICENSE](novels/LICENSE) 를 보세요.
+- **소설 원고·표지** (`novels/` 폴더): © 이준혁(soulfactorx). All rights reserved. 무단 전재·복제·배포를 금지합니다. 자세한 내용은 [novels/LICENSE](novels/LICENSE) 를 보세요.
