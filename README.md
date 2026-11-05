@@ -166,3 +166,8 @@ python3 -m http.server         # http://localhost:8000
 | `tools/build-index.mjs` | `novels/index.json` 목록 생성 (배포 시 자동 실행) |
 | `tools/encrypt.mjs` | 명령줄 암호화 도구 |
 | `novels/샘플/` | 예시 파일과 표지 (암호화 샘플 비밀번호: `1234`) — 확인 후 지워도 됩니다 |
+
+## 라이선스
+
+- **리더 코드** (`novels/` 폴더를 제외한 전부): [MIT License](LICENSE)
+- **소설 원고·표지** (`novels/` 폴더): © soulfactorx. All rights reserved. 무단 전재·복제·배포를 금지합니다. 자세한 내용은 [novels/LICENSE](novels/LICENSE) 를 보세요.
