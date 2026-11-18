@@ -47,6 +47,8 @@ button.icon { border: none; background: none; padding: 4px 8px; font-size: 18px;
   padding: 6px 10px; padding-top: calc(6px + env(safe-area-inset-top));
   background: var(--bg); border-bottom: 1px solid var(--line);
 }
+.topbar { transition: transform .2s; }
+:root.bar-hidden .topbar { transform: translateY(-100%); }
 .topbar .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 #text {
   max-width: var(--width); margin: 0 auto; padding: 24px 20px 32px;
@@ -100,6 +102,7 @@ button.icon { border: none; background: none; padding: 4px 8px; font-size: 18px;
     <span class="title" id="page-title"></span>
     <button class="icon" id="btn-toc" title="목차" aria-label="목차">☰</button>
     <button class="icon" id="btn-set" title="보기 설정" aria-label="보기 설정">Aa</button>
+    <button class="icon" id="btn-fs" title="전체화면 (F)" aria-label="전체화면" hidden>⛶</button>
   </header>
   <article id="text"></article>
   <nav class="pager">
@@ -121,7 +124,8 @@ button.icon { border: none; background: none; padding: 4px 8px; font-size: 18px;
   <div class="set-row"><span>본문 폭</span><span class="btns"><button data-step="width:-60">−</button><button data-step="width:60">+</button></span></div>
   <div class="set-row"><span>글꼴</span><span class="btns"><button data-set="font:serif">명조</button><button data-set="font:sans">고딕</button></span></div>
   <div class="set-row"><span>테마</span><span class="btns"><button data-set="theme:auto">자동</button><button data-set="theme:light">밝게</button><button data-set="theme:sepia">세피아</button><button data-set="theme:dark">어둡게</button></span></div>
-  <p class="note">← / → 키로 이전·다음 페이지로 넘어갑니다. 읽던 위치는 이 브라우저에 저장됩니다.</p>
+  <p class="note">← / → 키로 이전·다음 페이지, F 키로 전체화면을 켜고 끕니다. 전체화면에서 아래로 스크롤하면 상단 바가 숨겨집니다.
+    읽던 위치는 이 브라우저에 저장됩니다.</p>
 </aside>
 
 <script id="wn-data" type="application/json">/*WN_DATA*/</script>
@@ -222,6 +226,8 @@ button.icon { border: none; background: none; padding: 4px 8px; font-size: 18px;
     $('btn-next').disabled = cur === pages.length - 1;
     var max = document.documentElement.scrollHeight - innerHeight;
     window.scrollTo(0, ratio ? ratio * max : 0);
+    lastY = scrollY;
+    root.classList.remove('bar-hidden');
     save();
     markToc();
   }
@@ -305,7 +311,39 @@ button.icon { border: none; background: none; padding: 4px 8px; font-size: 18px;
     if (e.key === 'Escape') closePanels();
     else if (e.key === 'ArrowLeft' && cur > 0) render(cur - 1);
     else if (e.key === 'ArrowRight' && cur < pages.length - 1) render(cur + 1);
+    else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
   });
+
+  // ---------- 전체화면 ----------
+  // 지원하지 않는 환경(iPhone Safari 등)에서는 버튼을 숨긴다
+  var fsEnabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function toggleFullscreen() {
+    if (!fsEnabled) return;
+    if (isFullscreen()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else {
+      var r = (root.requestFullscreen || root.webkitRequestFullscreen).call(root, { navigationUI: 'hide' });
+      if (r && r.catch) r.catch(function () {});
+    }
+  }
+  function onFullscreenChange() {
+    var on = isFullscreen();
+    $('btn-fs').textContent = on ? '⤡' : '⛶';
+    $('btn-fs').title = on ? '전체화면 끝내기 (F)' : '전체화면 (F)';
+    if (!on) root.classList.remove('bar-hidden');
+  }
+  $('btn-fs').hidden = !fsEnabled;
+  $('btn-fs').onclick = toggleFullscreen;
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  // 전체화면에서 아래로 스크롤하면 상단 바를 숨기고, 위로 올리면 다시 보인다
+  var lastY = 0;
+  window.addEventListener('scroll', function () {
+    var y = scrollY;
+    if (Math.abs(y - lastY) <= 8) return;
+    if (isFullscreen()) root.classList.toggle('bar-hidden', y > lastY && y > 80);
+    lastY = y;
+  }, { passive: true });
   var saveTimer = 0;
   window.addEventListener('scroll', function () { if (book) { clearTimeout(saveTimer); saveTimer = setTimeout(save, 300); } }, { passive: true });
 
