@@ -43,12 +43,12 @@ export function decodeText(bytes) {
   }
 }
 
-async function pipeBytes(bytes, transform) {
+export async function pipeBytes(bytes, transform) {
   const stream = new Blob([bytes]).stream().pipeThrough(transform);
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-async function deriveKey(password, salt, iterations) {
+export async function deriveKey(password, salt, iterations) {
   const base = await subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
   return subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt, iterations },
