@@ -1,4 +1,5 @@
 import { decodeText, decryptText, decryptBytes, isEncrypted, WrongPasswordError } from './wncrypt.js';
+import { isStandaloneHtml, readMeta, needsPassword, openBook } from './wnhtml.js';
 import config from './config.js';
 import VERSION from './version.js';
 import { initProtect } from './protect.js';
@@ -33,7 +34,7 @@ let restoring = false;
 let pendingNav = null;        // 이전/다음 화 이동: { path, from }
 
 // ---------- 유틸 ----------
-const titleOf = (path) => path.split('/').pop().replace(/\.enc$/i, '').replace(/\.txt$/i, '');
+const titleOf = (path) => path.split('/').pop().replace(/\.enc$/i, '').replace(/\.(txt|html?)$/i, '');
 const fileUrl = (path) => path.split('/').map(encodeURIComponent).join('/');
 const readHash = (path) => '#/read/' + encodeURIComponent(path);
 const fmtPct = (r) => (r * 100).toFixed(r >= 0.995 && r < 1 ? 1 : 0) + '%';
@@ -91,13 +92,14 @@ function changeSettings(patch) {
 }
 
 // ---------- 문서 파싱 ----------
-function parseDoc(path, raw) {
+// forced: 화 제목으로 강제할 줄 번호 (여러 파일을 묶은 HTML 에서 파일 이름 줄)
+function parseDoc(path, raw, forced = new Set()) {
   const text = raw.replace(/\r\n?/g, '\n');
   const lines = [];
   const toc = [];
   let o = 0;
   for (const s of text.split('\n')) {
-    const heading = s.length <= 50 && HEADING.test(s);
+    const heading = forced.has(lines.length) || (s.length <= 50 && HEADING.test(s));
     if (heading) toc.push({ line: lines.length, title: s.trim() });
     lines.push({ o, s, heading });
     o += s.length + 1;
@@ -161,14 +163,20 @@ function askPassword(path, error) {
     dlg.onclose = () => resolve(dlg.returnValue === 'ok'
       ? { pw: $('pw-input').value, persist: $('pw-remember').checked } : null);
     dlg.returnValue = '';
+    // Enter 는 폼의 첫 버튼(취소)을 누르게 되므로 직접 '열기'로 처리한다
+    $('pw-input').onkeydown = (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      if ($('pw-input').value) dlg.close('ok');
+    };
     dlg.showModal();
     $('pw-input').focus();
   });
 }
-async function unlock(path, payload) {
+async function unlock(path, payload, decrypt = decryptText) {
   for (const pw of savedPasswords()) {
     try {
-      const text = await decryptText(payload, pw);
+      const text = await decrypt(payload, pw);
       rememberPassword(pw, false);
       return text;
     } catch (e) { if (!(e instanceof WrongPasswordError)) throw e; }
@@ -179,7 +187,7 @@ async function unlock(path, payload) {
     if (!ans) return null;
     showMessage('복호화하는 중…');
     try {
-      const text = await decryptText(payload, ans.pw);
+      const text = await decrypt(payload, ans.pw);
       rememberPassword(ans.pw, ans.persist);
       return text;
     } catch (e) {
@@ -187,6 +195,25 @@ async function unlock(path, payload) {
       error = e.message;
     }
   }
+}
+// 단독 HTML(여러 파일을 묶은 책)을 문서 하나로 이어 붙인다.
+// 파일 첫 줄이 화 제목 형식이 아니면 파일 이름을 제목 줄로 넣어 목차·페이지가 파일 단위로 나뉘게 한다.
+function bookToText(book) {
+  const out = [];
+  const forced = new Set();
+  const multi = book.files.length > 1;
+  for (const f of book.files) {
+    const lines = f.text.replace(/\r\n?/g, '\n').split('\n');
+    const first = lines.find((s) => s.trim()) || '';
+    if (out.length) out.push('');
+    if (multi && !(first.length <= 50 && HEADING.test(first))) {
+      forced.add(out.length);
+      out.push(f.title);
+      out.push('');
+    }
+    out.push(...lines);
+  }
+  return { text: out.join('\n'), forced };
 }
 async function loadDoc(path) {
   if (docs.has(path)) {
@@ -199,13 +226,21 @@ async function loadDoc(path) {
   if (!res.ok) throw new Error(`파일을 불러오지 못했습니다 (${res.status}): ${path}`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   let text;
-  if (/\.enc$/i.test(path) || isEncrypted(bytes)) {
+  let forced;
+  if (/\.html?$/i.test(path)) {
+    const html = new TextDecoder().decode(bytes);
+    if (!isStandaloneHtml(html)) throw new Error('이 리더의 암호화 도구로 만든 HTML 파일만 열 수 있습니다.');
+    const meta = readMeta(html);
+    const book = needsPassword(meta) ? await unlock(path, meta, openBook) : await openBook(meta);
+    if (book == null) return null;
+    ({ text, forced } = bookToText(book));
+  } else if (/\.enc$/i.test(path) || isEncrypted(bytes)) {
     text = await unlock(path, new TextDecoder().decode(bytes));
     if (text == null) return null;
   } else {
     text = decodeText(bytes);
   }
-  const doc = parseDoc(path, text);
+  const doc = parseDoc(path, text, forced);
   docs.set(path, doc);
   while (docs.size > MAX_CACHED_DOCS) docs.delete(docs.keys().next().value);
   return doc;

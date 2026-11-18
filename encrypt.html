@@ -16,7 +16,13 @@
   <style>
     main { max-width: 640px; margin: 0 auto; padding: 16px; }
     label { display: block; margin: 14px 0 4px; color: var(--muted); }
-    input[type=password], input[type=file] { width: 100%; }
+    input[type=password], input[type=text], input[type=file] { width: 100%; }
+    fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0 0; padding: 8px 12px 10px; }
+    legend { color: var(--muted); padding: 0 4px; }
+    fieldset label { display: flex; gap: 6px; align-items: baseline; margin: 6px 0; color: var(--fg); }
+    fieldset label small { color: var(--muted); }
+    .pick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    #picked { font-size: 13px; color: var(--muted); margin-top: 6px; word-break: break-all; }
     .row { margin-top: 16px; }
     #log { list-style: none; padding: 0; font-size: 14px; }
     #log li { padding: 6px 0; border-bottom: 1px solid var(--line); word-break: break-all; }
@@ -26,61 +32,221 @@
 <body>
   <header class="topbar"><a class="brand" href="./">📚 서재</a><span>파일 암호화 도구</span></header>
   <main>
-    <p class="note">파일은 이 브라우저 안에서만 처리되며 어디에도 전송되지 않습니다.
-      암호화한 <code>.txt.enc</code> 파일을 저장소의 <code>novels/</code> 폴더에 올리면 리더에서 비밀번호로 열 수 있습니다.</p>
-    <label for="files">텍스트 파일 또는 표지 이미지 (여러 개 선택 가능, UTF-8 / EUC-KR 자동 인식)</label>
-    <input type="file" id="files" multiple accept=".txt,.enc,text/plain,image/*">
-    <label for="pw1">비밀번호</label>
+    <p class="note">파일은 이 브라우저 안에서만 처리되며 어디에도 전송되지 않습니다.</p>
+
+    <fieldset>
+      <legend>만들 형식</legend>
+      <label><input type="radio" name="mode" value="enc" checked> 리더용 암호화 파일 (.enc)
+        <small>— 저장소 <code>novels/</code> 에 올려 리더에서 읽기</small></label>
+      <label><input type="radio" name="mode" value="html"> 단독 실행 HTML (.html)
+        <small>— 파일만 열면 브라우저에서 바로 읽힘. <code>novels/</code> 에 올려도 리더에서 읽힘</small></label>
+    </fieldset>
+
+    <div class="pick">
+      <button id="btn-files">📄 파일 선택</button>
+      <button id="btn-folder">📁 폴더 선택</button>
+      <input type="file" id="files" multiple accept=".txt,.enc,text/plain,image/*" hidden>
+      <input type="file" id="folder" webkitdirectory hidden>
+    </div>
+    <div id="picked">텍스트(.txt, UTF-8 / EUC-KR 자동 인식)나 표지 이미지를 고르거나, 폴더를 통째로 고르세요.</div>
+
+    <div id="html-opts" hidden>
+      <label for="title">책 제목 (폴더로 만들 때, 비우면 폴더 이름)</label>
+      <input type="text" id="title">
+      <label class="check"><input type="checkbox" id="protect" checked> 본문 복사·인쇄 막기</label>
+    </div>
+
+    <label for="pw1">비밀번호 <span id="pw-optional" hidden>(HTML 은 비워 두면 암호 없이 바로 열림)</span></label>
     <input type="password" id="pw1" autocomplete="new-password">
-    <label for="pw2">비밀번호 확인 (암호화할 때만)</label>
+    <label for="pw2">비밀번호 확인 (만들 때만)</label>
     <input type="password" id="pw2" autocomplete="new-password">
     <div class="row">
-      <button class="primary" id="btn-enc">암호화해서 내려받기</button>
-      <button id="btn-dec">복호화해서 내려받기</button>
+      <button class="primary" id="btn-enc">만들어서 내려받기</button>
+      <button id="btn-dec">.enc 복호화해서 내려받기</button>
     </div>
     <ul id="log"></ul>
-    <p class="note">⚠️ 원본 <code>.txt</code> 를 한 번이라도 커밋했다면 Git 기록에 남아 있습니다. 공개 저장소에는 처음부터 <code>.enc</code> 파일만 올리세요.
-      비밀번호를 잊으면 파일을 되살릴 수 없습니다.</p>
+    <div class="note">
+      <p><b>폴더를 고르면</b> — .enc: 안의 .txt·이미지를 모두 암호화해 <code>폴더이름.enc</code> 폴더로 만듭니다
+        (폴더에 바로 저장할 수 있는 브라우저(PC Chrome·Edge)는 저장 위치를 묻고, 그 밖에는 <code>폴더이름.enc.zip</code> 으로 받습니다).
+        HTML: 안의 .txt 를 이름순으로 한 권에 묶고 <code>cover.*</code>/<code>표지.*</code> 를 표지로 넣어 <code>폴더이름.html</code> 하나로 만듭니다.</p>
+      <p><b>HTML 비밀번호</b> — 비밀번호를 넣으면 열 때 비밀번호를 입력해야 읽을 수 있습니다 (AES-256-GCM, PBKDF2 60만 회).
+        비워 두면 바로 읽히고, 편집기로 열면 본문은 암호문으로만 보입니다. 단 이 경우 열쇠가 파일 안에 함께 들어 있으므로
+        기술을 아는 사람은 풀 수 있는 '난독화' 수준입니다. 확실히 막으려면 비밀번호를 쓰세요.</p>
+      <p>⚠️ 원본 <code>.txt</code> 를 한 번이라도 커밋했다면 Git 기록에 남아 있습니다. 공개 저장소에는 처음부터 암호화한 파일만 올리세요.
+        비밀번호를 잊으면 파일을 되살릴 수 없습니다.</p>
+    </div>
   </main>
   <script type="module">
     import { encryptText, encryptBytes, decryptBytes, decodeText, imageTypeOf } from './assets/wncrypt.js';
+    import { loadTemplate, buildHtml, bookFromEntries, stripExt, isTextName } from './assets/wnhtml.js';
     const $ = (id) => document.getElementById(id);
     const log = (msg) => { const li = document.createElement('li'); li.textContent = msg; $('log').prepend(li); };
-    const download = (name, data, type = 'text/plain;charset=utf-8') => {
+    const mode = () => document.querySelector('input[name=mode]:checked').value;
+    let picked = { files: [], folder: '' }; // folder: 폴더로 골랐을 때 그 이름
+
+    function download(name, data, type = 'application/octet-stream') {
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([data], { type }));
+      a.href = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
       a.download = name;
       a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    };
-    async function run(decrypt) {
-      const files = [...$('files').files];
-      const pw = $('pw1').value;
-      if (!files.length) return log('파일을 선택하세요.');
-      if (!pw) return log('비밀번호를 입력하세요.');
-      if (!decrypt && pw !== $('pw2').value) return log('비밀번호 확인이 일치하지 않습니다.');
-      for (const f of files) {
-        try {
-          if (decrypt) {
-            const { bytes, type } = await decryptBytes(await f.text(), pw);
-            const name = f.name.replace(/\.enc$/i, '');
-            download(/\.\w+$/.test(name) ? name : name + '.txt', bytes, type);
-            log(`✅ 복호화: ${f.name}`);
-          } else {
-            const bytes = new Uint8Array(await f.arrayBuffer());
-            const type = imageTypeOf(f.name);
-            download(f.name + '.enc', type
-              ? await encryptBytes(bytes, pw, { type, compress: false })
-              : await encryptText(decodeText(bytes), pw));
-            log(`✅ 암호화: ${f.name} → ${f.name}.enc`);
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }
+
+    // ---------- zip (무압축) ----------
+    const CRC = new Uint32Array(256).map((_, n) => {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      return c;
+    });
+    const crc32 = (b) => { let c = -1; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; };
+    function zip(entries) { // [{ path, bytes }]
+      const enc = new TextEncoder(), parts = [], central = [];
+      let offset = 0;
+      for (const { path, bytes } of entries) {
+        const name = enc.encode(path), crc = crc32(bytes);
+        const head = (sig, extra) => {
+          const h = new DataView(new ArrayBuffer(extra ? 46 : 30));
+          let p = 0;
+          const u32 = (v) => { h.setUint32(p, v, true); p += 4; }, u16 = (v) => { h.setUint16(p, v, true); p += 2; };
+          u32(sig); if (extra) u16(20); u16(20); u16(0x0800); u16(0); u16(0); u16(0x21);
+          u32(crc); u32(bytes.length); u32(bytes.length); u16(name.length); u16(0);
+          if (extra) { u16(0); u16(0); u16(0); u32(0); u32(offset); }
+          return new Uint8Array(h.buffer);
+        };
+        const local = head(0x04034b50, false);
+        parts.push(local, name, bytes);
+        central.push(head(0x02014b50, true), name);
+        offset += local.length + name.length + bytes.length;
+      }
+      const size = central.reduce((n, b) => n + b.length, 0);
+      const end = new DataView(new ArrayBuffer(22));
+      end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+      end.setUint32(12, size, true); end.setUint32(16, offset, true);
+      return new Blob([...parts, ...central, end], { type: 'application/zip' });
+    }
+
+    // 폴더 결과 저장: 폴더에 바로 쓸 수 있으면 쓰고, 아니면 zip 으로 내려받기
+    async function saveFolder(name, entries) {
+      if (window.showDirectoryPicker) {
+        let parent;
+        try { parent = await showDirectoryPicker({ id: 'wn-out', mode: 'readwrite' }); }
+        catch (e) { if (e.name === 'AbortError') return log('저장을 취소했습니다.'); parent = null; }
+        if (parent) {
+          const top = await parent.getDirectoryHandle(name, { create: true });
+          for (const { path, bytes } of entries) {
+            const segs = path.split('/');
+            let dir = top;
+            for (const s of segs.slice(0, -1)) dir = await dir.getDirectoryHandle(s, { create: true });
+            const w = await (await dir.getFileHandle(segs.at(-1), { create: true })).createWritable();
+            await w.write(bytes); await w.close();
           }
-        } catch (e) {
-          log(`❌ ${f.name}: ${e.message}`);
+          return log(`✅ ${parent.name}/${name}/ 에 ${entries.length}개 파일을 저장했습니다.`);
         }
       }
+      download(name + '.zip', zip(entries.map((e) => ({ path: name + '/' + e.path, bytes: e.bytes }))));
+      log(`✅ ${name}.zip 으로 내려받았습니다 (${entries.length}개 파일). 압축을 풀면 ${name} 폴더가 나옵니다.`);
     }
-    $('btn-enc').onclick = () => run(false);
-    $('btn-dec').onclick = () => run(true);
+
+    const relPath = (f) => picked.folder ? f.webkitRelativePath.split('/').slice(1).join('/') : f.name;
+    const visible = (f) => !relPath(f).split('/').some((s) => s.startsWith('.'));
+
+    function setPicked(files, folder) {
+      picked = { files: files.filter(visible), folder };
+      $('picked').textContent = folder
+        ? `📁 ${folder} — 파일 ${picked.files.length}개`
+        : picked.files.map((f) => f.name).join(', ') || '선택한 파일이 없습니다.';
+    }
+    $('btn-files').onclick = () => $('files').click();
+    $('btn-folder').onclick = () => $('folder').click();
+    $('files').onchange = () => setPicked([...$('files').files], '');
+    $('folder').onchange = () => {
+      const files = [...$('folder').files];
+      setPicked(files, files[0]?.webkitRelativePath.split('/')[0] || '');
+    };
+    function onMode() {
+      const html = mode() === 'html';
+      $('html-opts').hidden = !html;
+      $('pw-optional').hidden = !html;
+    }
+    for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = onMode;
+
+    async function encryptOne(f, pw) {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const type = imageTypeOf(f.name);
+      return new TextEncoder().encode(type
+        ? await encryptBytes(bytes, pw, { type, compress: false })
+        : await encryptText(decodeText(bytes), pw));
+    }
+
+    async function make() {
+      const { files, folder } = picked;
+      const pw = $('pw1').value;
+      const html = mode() === 'html';
+      if (!files.length) return log('파일이나 폴더를 선택하세요.');
+      if (!pw && !html) return log('비밀번호를 입력하세요.');
+      if (pw !== $('pw2').value) return log('비밀번호 확인이 일치하지 않습니다.');
+      const usable = (f) => !/\.enc$/i.test(f.name) && (isTextName(f.name) || imageTypeOf(f.name));
+      const skipped = files.filter((f) => !usable(f)).map(relPath);
+      if (skipped.length) log(`건너뜀 (대상 아님): ${skipped.join(', ')}`);
+      const opts = { password: pw, protect: $('protect').checked };
+
+      if (html) {
+        const template = await loadTemplate();
+        if (folder) {
+          const entries = [];
+          for (const f of files.filter(usable)) entries.push({ path: relPath(f), bytes: new Uint8Array(await f.arrayBuffer()) });
+          const book = bookFromEntries(entries);
+          if (!book.files.length) return log('❌ 폴더에 .txt 파일이 없습니다.');
+          log(`만드는 중… (${book.files.length}개 파일)`);
+          download(folder + '.html', await buildHtml(template, { ...book, ...opts, title: $('title').value.trim() || folder }), 'text/html;charset=utf-8');
+          return log(`✅ ${folder}.html (${book.files.length}개 파일${book.cover ? ', 표지 포함' : ''}${pw ? ', 🔒 비밀번호' : ', 암호 없음'})`);
+        }
+        for (const f of files.filter((f) => isTextName(f.name))) {
+          const text = decodeText(new Uint8Array(await f.arrayBuffer()));
+          const title = stripExt(f.name);
+          download(title + '.html', await buildHtml(template, { files: [{ title, text }], ...opts, title }), 'text/html;charset=utf-8');
+          log(`✅ ${f.name} → ${title}.html${pw ? ' 🔒' : ''}`);
+        }
+        return;
+      }
+
+      if (folder) {
+        const out = [];
+        for (const f of files.filter(usable)) out.push({ path: relPath(f) + '.enc', bytes: await encryptOne(f, pw) });
+        if (!out.length) return log('❌ 폴더에 암호화할 파일이 없습니다.');
+        return saveFolder(folder + '.enc', out);
+      }
+      for (const f of files.filter(usable)) {
+        download(f.name + '.enc', await encryptOne(f, pw));
+        log(`✅ 암호화: ${f.name} → ${f.name}.enc`);
+      }
+    }
+
+    async function decrypt() {
+      const { files, folder } = picked;
+      const pw = $('pw1').value;
+      if (!files.length) return log('파일이나 폴더를 선택하세요.');
+      if (!pw) return log('비밀번호를 입력하세요.');
+      const out = [];
+      for (const f of files.filter((f) => /\.enc$/i.test(f.name))) {
+        try {
+          const { bytes, type } = await decryptBytes(await f.text(), pw);
+          const base = relPath(f).replace(/\.enc$/i, '');
+          const name = /\.\w+$/.test(base.split('/').pop()) ? base : base + '.txt';
+          if (folder) out.push({ path: name, bytes });
+          else { download(name, bytes, type); log(`✅ 복호화: ${f.name}`); }
+        } catch (e) {
+          log(`❌ ${relPath(f)}: ${e.message}`);
+        }
+      }
+      if (folder && out.length) await saveFolder(folder.replace(/\.enc$/i, '') + (/\.enc$/i.test(folder) ? '' : '.dec'), out);
+    }
+
+    const guard = (fn) => async () => {
+      try { await fn(); } catch (e) { log(`❌ ${e.message}`); }
+    };
+    $('btn-enc').onclick = guard(make);
+    $('btn-dec').onclick = guard(decrypt);
   </script>
 </body>
 </html>
